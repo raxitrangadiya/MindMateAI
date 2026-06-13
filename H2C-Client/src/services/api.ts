@@ -1,6 +1,6 @@
 import { User, JournalEntry, ChatMessage, DashboardData, ActionPlan } from '../types';
 
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('mindmate_token');
