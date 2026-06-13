@@ -46,3 +46,35 @@ export const validateUser = [
     .isIn(VALID_EXAM_TYPES)
     .withMessage(`examType must be one of: ${VALID_EXAM_TYPES.join(', ')}`),
 ];
+
+export const validateRegister = [
+  body('name')
+    .isString()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Name must be between 2 and 50 characters'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  body('password')
+    .isString()
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
+  body('examType')
+    .isString()
+    .trim()
+    .isIn(VALID_EXAM_TYPES)
+    .withMessage(`examType must be one of: ${VALID_EXAM_TYPES.join(', ')}`),
+];
+
+export const validateLogin = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  body('password')
+    .isString()
+    .notEmpty()
+    .withMessage('Password is required'),
+];

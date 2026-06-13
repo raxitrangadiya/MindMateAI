@@ -1,18 +1,22 @@
 import { Router, type Request, type Response } from 'express';
+import { validationResult } from 'express-validator';
+import { validateRegister, validateLogin } from '../middleware/validator.js';
+import { sanitizeInputs } from '../middleware/sanitizer.js';
 import { createUser, getUserByEmail, seedDemoData } from '../services/supabase.service.js';
 import { hashPassword, comparePassword, generateToken } from '../services/auth.service.js';
 
 const router = Router();
 
 // POST /api/auth/register — Register a new user
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', sanitizeInputs, validateRegister, async (req: Request, res: Response) => {
   try {
-    const { name, email, password, examType } = req.body;
-    
-    if (!name || !email || !password || !examType) {
-      res.status(400).json({ error: 'All fields (name, email, password, examType) are required' });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
       return;
     }
+
+    const { name, email, password, examType } = req.body;
     
     const existing = await getUserByEmail(email);
     if (existing) {
@@ -42,14 +46,15 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/login — Login an existing user
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', sanitizeInputs, validateLogin, async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      res.status(400).json({ error: 'Email and password are required' });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
       return;
     }
+
+    const { email, password } = req.body;
     
     const user = await getUserByEmail(email);
     if (!user || !user.password_hash) {

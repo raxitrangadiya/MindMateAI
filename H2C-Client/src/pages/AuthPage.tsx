@@ -154,6 +154,7 @@ export const AuthPage: React.FC = () => {
                 <Input
                   type="email"
                   placeholder="Email Address"
+                  aria-label="Email Address"
                   className="pl-11"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -167,6 +168,7 @@ export const AuthPage: React.FC = () => {
                 <Input
                   type="password"
                   placeholder="Password"
+                  aria-label="Password"
                   className="pl-11"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -188,6 +190,7 @@ export const AuthPage: React.FC = () => {
                 <Input
                   type="text"
                   placeholder="First Name"
+                  aria-label="First Name"
                   className="pl-11"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -201,6 +204,7 @@ export const AuthPage: React.FC = () => {
                 <Input
                   type="email"
                   placeholder="Email Address"
+                  aria-label="Email Address"
                   className="pl-11"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -214,6 +218,7 @@ export const AuthPage: React.FC = () => {
                 <Input
                   type="password"
                   placeholder="Password"
+                  aria-label="Password"
                   className="pl-11"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -223,10 +228,10 @@ export const AuthPage: React.FC = () => {
               </div>
 
               <div className="flex flex-col gap-2 mt-1">
-                <label className="text-xs font-semibold text-slate-300">
+                <span id="exam-select-label" className="text-xs font-semibold text-slate-300">
                   Target Competitive Exam
-                </label>
-                <div className="grid grid-cols-2 gap-2">
+                </span>
+                <div role="group" aria-labelledby="exam-select-label" className="grid grid-cols-2 gap-2">
                   {exams.map((exam) => (
                     <button
                       key={exam.value}
