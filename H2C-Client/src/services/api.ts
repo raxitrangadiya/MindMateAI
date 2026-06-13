@@ -3,12 +3,19 @@ import { User, JournalEntry, ChatMessage, DashboardData, ActionPlan } from '../t
 const BASE_URL = '/api';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const token = localStorage.getItem('mindmate_token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string> || {}),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${BASE_URL}${url}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers: headers as HeadersInit,
   });
 
   if (!response.ok) {
@@ -19,15 +26,114 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-// Simulated mock data generators for gracefull fallbacks if backend is not running
+// Simulated mock data generators for graceful fallbacks if backend is not running
 const MOCK_TRIGGERS = ['Mock Exam Prep', 'Procrastination', 'Time Management', 'Peer Pressure', 'Lack of Sleep', 'Silly Mistakes'];
 const MOCK_DISTORTIONS = ['All-or-Nothing Thinking', 'Catastrophizing', 'Should Statements', 'Emotional Reasoning'];
 
+// Mappers to translate backend database schemas to frontend types
+function mapServerJournal(e: any): JournalEntry {
+  const stress = e.stress_level ?? 5;
+  const motivation = e.motivation_score ?? 5;
+  // Mood rating: higher motivation & lower stress => better mood (1 to 5)
+  const moodRating = Math.round(10 - stress + motivation) / 2;
+  const moodVal = moodRating > 4 ? 'high' : moodRating < 2 ? 'low' : 'neutral';
+
+  return {
+    id: e.id,
+    content: e.content,
+    createdAt: e.created_at || e.createdAt,
+    analysis: {
+      mood: e.mood || moodVal,
+      stressLevel: stress,
+      anxietyLevel: e.anxiety_level || e.anxietyLevel || 0,
+      motivationLevel: motivation,
+      triggers: e.triggers || [],
+      primaryEmotion: e.emotion || 'Neutral',
+      cognitiveDistortions: e.cognitive_distortions || [],
+      recommendations: e.recommendations || [
+        'Engage in a 5-minute somatic breathing exercise to calm your amygdala.',
+        'Reflect on your past wins. You have cleared challenging hurdles before.',
+        'Focus on 3 small topics you can improve tomorrow rather than the whole test score.'
+      ],
+      summary: e.supportive_message || e.summary || 'AI feedback analysis completed.'
+    }
+  };
+}
+
+function mapServerChatMessage(m: any): ChatMessage {
+  return {
+    id: m.id,
+    sender: m.role === 'assistant' ? 'bot' : 'user',
+    text: m.content,
+    timestamp: m.created_at || m.timestamp || new Date().toISOString(),
+    suggestions: m.role === 'assistant' ? getChatSuggestions(m.content) : undefined
+  };
+}
+
+function getChatSuggestions(text: string): string[] {
+  const lower = text.toLowerCase();
+  if (lower.includes('breathing') || lower.includes('exercise') || lower.includes('box')) {
+    return ["Let's do the exercise", "How does breathing help?", "I feel a bit better"];
+  }
+  if (lower.includes('burnout') || lower.includes('exhausted') || lower.includes('tired')) {
+    return ["How to set study boundaries", "Symptoms of burnout", "Relaxing techniques"];
+  }
+  return ["Help me plan study sessions", "Help me reframe negative thoughts", "Guide me through a breathing exercise"];
+}
+
 export const api = {
-  // Onboard User
+  // Authentication
+  async login(email: string, password: string): Promise<{ token: string; user: User }> {
+    const res = await fetchJson<{ token: string; user: any }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    return {
+      token: res.token,
+      user: {
+        id: res.user.id,
+        name: res.user.name,
+        examType: res.user.examType,
+        joinedAt: res.user.joinedAt
+      }
+    };
+  },
+
+  async register(name: string, email: string, password: string, examType: string): Promise<{ token: string; user: User }> {
+    const res = await fetchJson<{ token: string; user: any }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password, examType }),
+    });
+    return {
+      token: res.token,
+      user: {
+        id: res.user.id,
+        name: res.user.name,
+        examType: res.user.examType,
+        joinedAt: res.user.joinedAt
+      }
+    };
+  },
+
+  async demoLogin(): Promise<{ token: string; user: User }> {
+    const res = await fetchJson<{ token: string; user: any }>('/auth/demo', {
+      method: 'POST',
+    });
+    return {
+      token: res.token,
+      user: {
+        id: res.user.id,
+        name: res.user.name,
+        examType: res.user.examType,
+        joinedAt: res.user.joinedAt
+      }
+    };
+  },
+
+  // Onboard User (Legacy fallback)
   async onboardUser(name: string, examType: string): Promise<User> {
     try {
-      return await fetchJson<User>('/users', {
+      return await fetchJson<User>('/user', {
         method: 'POST',
         body: JSON.stringify({ name, examType }),
       });
@@ -40,10 +146,17 @@ export const api = {
 
   // Journal Entries
   async getJournalEntries(): Promise<JournalEntry[]> {
+    const userJson = localStorage.getItem('mindmate_user');
+    if (!userJson) return [];
+    
+    const user = JSON.parse(userJson);
+    if (!user.id) return [];
+
     try {
-      return await fetchJson<JournalEntry[]>('/journal');
+      const serverEntries = await fetchJson<any[]>('/journal/' + user.id);
+      return serverEntries.map(mapServerJournal);
     } catch (err) {
-      console.warn('Backend offline, fetching mock/localStorage journal entries.');
+      console.warn('Backend offline or failed, fetching mock/localStorage journal entries.');
       const stored = localStorage.getItem('mindmate_mock_journals');
       if (stored) return JSON.parse(stored);
 
@@ -95,13 +208,20 @@ export const api = {
   },
 
   async submitJournalEntry(content: string): Promise<JournalEntry> {
+    const userJson = localStorage.getItem('mindmate_user');
+    const user = userJson ? JSON.parse(userJson) : null;
+
     try {
-      return await fetchJson<JournalEntry>('/journal', {
+      if (!user || !user.id) throw new Error('Unauthenticated user');
+
+      const response = await fetchJson<{ entry: any; analysis: any }>('/journal', {
         method: 'POST',
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ userId: user.id, content }),
       });
+
+      return mapServerJournal(response.entry);
     } catch (err) {
-      console.warn('Backend offline, simulating AI journal analysis locally.');
+      console.warn('Backend offline or failed, simulating AI journal analysis locally.');
       
       // Local Simulation of AI analysis
       const stressVal = Math.floor(Math.random() * 5) + 5; // 5-9
@@ -143,11 +263,24 @@ export const api = {
 
   // Coaching Chat
   async sendChatMessage(content: string, sessionId?: string): Promise<{ messages: ChatMessage[]; sessionId: string }> {
+    const userJson = localStorage.getItem('mindmate_user');
+    const user = userJson ? JSON.parse(userJson) : null;
+
     try {
-      return await fetchJson<{ messages: ChatMessage[]; sessionId: string }>('/chat', {
+      if (!user || !user.id) throw new Error('Unauthenticated user');
+
+      const activeSession = sessionId || 'session-' + Math.random().toString(36).substr(2, 9);
+      
+      await fetchJson<any>('/chat', {
         method: 'POST',
-        body: JSON.stringify({ content, sessionId }),
+        body: JSON.stringify({ userId: user.id, message: content, sessionId: activeSession }),
       });
+
+      const history = await this.getChatHistory(activeSession);
+      return {
+        messages: history,
+        sessionId: activeSession
+      };
     } catch (err) {
       console.warn('Backend offline, generating local simulated AI chatbot reply.');
       const activeSession = sessionId || 'session-' + Math.random().toString(36).substr(2, 9);
@@ -199,8 +332,14 @@ export const api = {
   },
 
   async getChatHistory(sessionId: string): Promise<ChatMessage[]> {
+    const userJson = localStorage.getItem('mindmate_user');
+    const user = userJson ? JSON.parse(userJson) : null;
+
+    if (!user || !user.id) return [];
+
     try {
-      return await fetchJson<ChatMessage[]>(`/chat/history?sessionId=${sessionId}`);
+      const serverHistory = await fetchJson<any[]>(`/chat/${user.id}/${sessionId}`);
+      return serverHistory.map(mapServerChatMessage);
     } catch (err) {
       const storedSessionKey = `mindmate_chat_${sessionId}`;
       const existing = localStorage.getItem(storedSessionKey);
@@ -210,8 +349,43 @@ export const api = {
 
   // Dashboard Data
   async getDashboardData(): Promise<DashboardData> {
+    const userJson = localStorage.getItem('mindmate_user');
+    const user = userJson ? JSON.parse(userJson) : null;
+
     try {
-      return await fetchJson<DashboardData>('/dashboard');
+      if (!user || !user.id) throw new Error('Unauthenticated user');
+
+      const serverData = await fetchJson<any>('/dashboard/' + user.id);
+      
+      const recentMoodTrend = serverData.moodTrend.map((m: any, idx: number) => {
+        return {
+          date: m.date,
+          mood: m.value, // value represents mood
+          stress: serverData.stressTrend[idx]?.value || 0,
+          anxiety: serverData.anxietyTrend[idx]?.value || 0,
+          motivation: serverData.motivationTrend[idx]?.value || 0
+        };
+      });
+
+      const riskMap: Record<string, number> = { Low: 20, Medium: 50, High: 80 };
+      const burnoutRisk = riskMap[serverData.currentBurnoutRisk] || 25;
+
+      const triggersFrequency = serverData.triggers.map((t: any) => ({
+        trigger: t.name,
+        count: t.count
+      }));
+
+      return {
+        weeklySummary: `Dashboard loaded with data. You have completed ${serverData.totalEntries} journal entries with a streak of ${serverData.streak} days. Your average mood rating is ${serverData.avgMood}/5.`,
+        burnoutRisk,
+        recentMoodTrend,
+        triggersFrequency,
+        insights: [
+          'Stress levels typically spike after mock test scores. Reframing errors as data points will help lower your anxiety.',
+          'Your motivation is strongly linked to completing your daily top targets. Keep them bite-sized!',
+          'Sleep quality dropped below 6 hours on Wednesday. Focus on restoring a 7-8 hour sleep schedule to boost memory consolidation.'
+        ]
+      };
     } catch (err) {
       console.warn('Backend offline, using fallback mock dashboard data.');
       const stored = localStorage.getItem('mindmate_mock_dashboard');
@@ -231,9 +405,7 @@ export const api = {
         { date: 'Sun', mood: 4, stress: 5, anxiety: 4, motivation: 8 },
       ];
 
-      // If there are real journals, let's map them to make the trend look realistic!
       if (journals.length > 0) {
-        // Just keep standard mock but overlay latest journal statistics
         const latest = journals[0];
         if (latest.analysis) {
           const mapping: Record<string, number> = { very_low: 1, low: 2, neutral: 3, high: 4, very_high: 5 };
@@ -247,7 +419,6 @@ export const api = {
         }
       }
 
-      // Calculate a realistic burnout index based on latest stress levels
       let avgStress = 5.5;
       if (journals.length > 0) {
         const sum = journals.reduce((acc, entry) => acc + (entry.analysis?.stressLevel || 5), 0);
@@ -282,8 +453,19 @@ export const api = {
 
   // Action Plan
   async getActionPlan(): Promise<ActionPlan> {
+    const userJson = localStorage.getItem('mindmate_user');
+    const user = userJson ? JSON.parse(userJson) : null;
+
     try {
-      return await fetchJson<ActionPlan>('/action-plan');
+      if (!user || !user.id) throw new Error('Unauthenticated user');
+
+      const serverPlan = await fetchJson<any>('/action-plan/' + user.id);
+      return {
+        dailyGoal: JSON.parse(serverPlan.daily_goal),
+        stressPlan: JSON.parse(serverPlan.stress_plan),
+        mindfulnessExercise: JSON.parse(serverPlan.mindfulness_exercise),
+        motivationChallenge: JSON.parse(serverPlan.motivation_challenge)
+      };
     } catch (err) {
       console.warn('Backend offline, using fallback mock action plan.');
       const plan: ActionPlan = {

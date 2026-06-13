@@ -1,4 +1,5 @@
 export interface User {
+  id?: string;
   name: string;
   examType: 'JEE' | 'NEET' | 'UPSC' | 'GATE' | 'CAT' | 'CUET' | string;
   joinedAt: string;

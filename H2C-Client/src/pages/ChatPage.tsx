@@ -16,7 +16,7 @@ export const ChatPage: React.FC = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate('/onboarding');
+      navigate('/login');
     }
   }, [user, navigate]);
 

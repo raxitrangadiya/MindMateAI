@@ -57,10 +57,17 @@ if (useSupabase) {
 /*  USERS                                                             */
 /* ================================================================== */
 
-export async function createUser(name: string, examType: ExamType): Promise<User> {
+export async function createUser(
+  name: string,
+  examType: ExamType,
+  email?: string,
+  passwordHash?: string
+): Promise<User> {
   const user: User = {
     id: uuidv4(),
     name,
+    email,
+    password_hash: passwordHash,
     exam_type: examType,
     created_at: new Date().toISOString(),
   };
@@ -73,6 +80,19 @@ export async function createUser(name: string, examType: ExamType): Promise<User
 
   mem.users.set(user.id, user);
   return user;
+}
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+  if (useSupabase && supabase) {
+    const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
+    if (error) return null;
+    return data as User;
+  }
+
+  for (const user of mem.users.values()) {
+    if (user.email === email) return user;
+  }
+  return null;
 }
 
 export async function getUser(userId: string): Promise<User | null> {
@@ -340,3 +360,176 @@ function calculateStreak(entries: JournalEntry[]): number {
   }
   return streak;
 }
+
+/**
+ * Seed database or in-memory store with rich sample data for the demo user.
+ */
+export async function seedDemoData(userId: string): Promise<void> {
+  const existingEntries = await getJournalEntries(userId);
+  if (existingEntries.length > 0) {
+    return; // Already seeded
+  }
+
+  // 1. Create Demo Journal Entries
+  const journals: JournalEntry[] = [
+    {
+      id: uuidv4(),
+      user_id: userId,
+      content: 'Today was hard. I took a practice test for my exam and scored much lower than I expected. I feel like I am letting down my parents and myself.',
+      emotion: 'Defeat / Fear of Failure',
+      stress_level: 8,
+      anxiety_level: 7,
+      burnout_risk: 'Medium',
+      motivation_score: 4,
+      triggers: ['Mock Exam Prep', 'Peer Pressure'],
+      sentiment: 'negative',
+      emergency_detected: false,
+      created_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
+    },
+    {
+      id: uuidv4(),
+      user_id: userId,
+      content: 'Managed to study for 6 hours today and actually completed my review of Organic Chemistry. Feeling a bit more confident and relaxed.',
+      emotion: 'Accomplishment',
+      stress_level: 4,
+      anxiety_level: 3,
+      burnout_risk: 'Low',
+      motivation_score: 8,
+      triggers: ['Time Management'],
+      sentiment: 'positive',
+      emergency_detected: false,
+      created_at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
+    },
+    {
+      id: uuidv4(),
+      user_id: userId,
+      content: 'Really tired today. Felt like I could not focus at all. Every time I look at the calendar I feel this weight in my chest. I need to take a break but I feel guilty doing it.',
+      emotion: 'Exhaustion & Guilt',
+      stress_level: 9,
+      anxiety_level: 8,
+      burnout_risk: 'High',
+      motivation_score: 3,
+      triggers: ['Lack of Sleep', 'Silly Mistakes', 'Mock Exam Prep'],
+      sentiment: 'negative',
+      emergency_detected: false,
+      created_at: new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString(),
+    },
+    {
+      id: uuidv4(),
+      user_id: userId,
+      content: 'Had a good talk with a peer. Did some box breathing and managed to complete a study block. Feel like I am getting back on track.',
+      emotion: 'Relief',
+      stress_level: 5,
+      anxiety_level: 4,
+      burnout_risk: 'Medium',
+      motivation_score: 7,
+      triggers: ['Time Management', 'Peer Pressure'],
+      sentiment: 'mixed',
+      emergency_detected: false,
+      created_at: new Date().toISOString(),
+    }
+  ];
+
+  for (const entry of journals) {
+    await createJournalEntry(entry);
+  }
+
+  // 2. Create Demo Chat Messages
+  const sessionId = 'demo-session-123';
+  const chatMessages: ChatMessage[] = [
+    {
+      id: uuidv4(),
+      user_id: userId,
+      session_id: sessionId,
+      role: 'user',
+      content: 'I feel completely overwhelmed by the syllabus, there is just too much to cover.',
+      created_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+    },
+    {
+      id: uuidv4(),
+      user_id: userId,
+      session_id: sessionId,
+      role: 'assistant',
+      content: 'I hear you. The syllabus is massive, and it is completely natural to feel overwhelmed. Let\'s break it down. Have you defined your top 3 targets for today, or is the syllabus size making it hard to start?',
+      created_at: new Date(Date.now() - 19 * 60 * 1000).toISOString(),
+    },
+    {
+      id: uuidv4(),
+      user_id: userId,
+      session_id: sessionId,
+      role: 'user',
+      content: 'Yes, I try to target them but I keep thinking about what if I fail.',
+      created_at: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
+    },
+    {
+      id: uuidv4(),
+      user_id: userId,
+      session_id: sessionId,
+      role: 'assistant',
+      content: 'Fear of failure is a very real source of anxiety. It activates our fight-or-flight response, making logical planning hard. Try to focus on the process rather than the outcome. Let\'s start with a very small study sprint: just 25 minutes of active recall on one topic. How does that sound?',
+      created_at: new Date(Date.now() - 17 * 60 * 1000).toISOString(),
+    },
+    {
+      id: uuidv4(),
+      user_id: userId,
+      session_id: sessionId,
+      role: 'user',
+      content: 'That sounds manageable. I will do that.',
+      created_at: new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+    },
+    {
+      id: uuidv4(),
+      user_id: userId,
+      session_id: sessionId,
+      role: 'assistant',
+      content: 'Excellent! Turn off all distractions for the next 25 minutes. You\'ve got this. I\'m here whenever you want to check back in or do a breathing exercise.',
+      created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    }
+  ];
+
+  for (const msg of chatMessages) {
+    await createChatMessage(msg);
+  }
+
+  // 3. Create Demo Action Plan
+  const plan: ActionPlan = {
+    id: uuidv4(),
+    user_id: userId,
+    daily_goal: JSON.stringify({
+      title: 'Complete one active recall sprint (25m) on a high-yield topic',
+      description: 'Focus entirely on understanding the core concept. Put all devices away.',
+      completed: false
+    }),
+    stress_plan: JSON.stringify({
+      triggers: ['Syllabus size', 'Fear of failure', 'Mock Exam Prep'],
+      copingMechanisms: [
+        'Do 4-7-8 breathing for 2 minutes when chest feels tight.',
+        'Write down distracting worries on a physical notepad to release working memory.',
+        'Set solid study-rest boundaries—no study after 10 PM.'
+      ]
+    }),
+    mindfulness_exercise: JSON.stringify({
+      title: 'Box Breathing for Focus',
+      type: 'breathing',
+      duration: 4,
+      steps: [
+        'Sit comfortably with your back straight.',
+        'Exhale all the air from your lungs.',
+        'Inhale slowly through your nose for a count of 4.',
+        'Hold your breath for a count of 4.',
+        'Exhale slowly and smoothly for a count of 4.',
+        'Hold your lungs empty for a count of 4.',
+        'Repeat this cycle 4 to 5 times.'
+      ]
+    }),
+    motivation_challenge: JSON.stringify({
+      title: 'The Unplugged Revision Block',
+      description: 'Study for a block of 50 minutes without checking notifications or social media.',
+      reward: '20 minutes of your favorite activity guilt-free'
+    }),
+    created_at: new Date().toISOString()
+  };
+
+  await createActionPlan(plan);
+}
+

@@ -6,16 +6,16 @@ test.describe('Routing and Guards Feature', () => {
     await page.goto('/');
     await expect(page.locator('h1')).toContainText('Conquer Your Exam Stress');
 
-    // Guest visiting onboarding page
-    await page.goto('/onboarding');
+    // Guest visiting login page
+    await page.goto('/login');
     await expect(page.locator('h2')).toContainText('Welcome to MindMate');
 
-    // Guest trying to access protected dashboard route should be redirected to onboarding
+    // Guest trying to access protected dashboard route should be redirected to login
     await page.goto('/dashboard');
-    await expect(page).toHaveURL(/\/onboarding/);
+    await expect(page).toHaveURL(/\/login/);
   });
 
-  test('logged in user should be redirected from landing and onboarding to dashboard', async ({ page }) => {
+  test('logged in user should be redirected from landing and login to dashboard', async ({ page }) => {
     // Inject user state in localStorage
     await page.goto('/');
     await page.evaluate(() => {
@@ -31,8 +31,8 @@ test.describe('Routing and Guards Feature', () => {
     await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.locator('h1')).toContainText('Hey, Jane Doe!');
 
-    // Visiting onboarding page as logged-in user should redirect to dashboard
-    await page.goto('/onboarding');
+    // Visiting login page as logged-in user should redirect to dashboard
+    await page.goto('/login');
     await expect(page).toHaveURL(/\/dashboard/);
   });
 });

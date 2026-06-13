@@ -15,7 +15,7 @@ export const LandingPage: React.FC = () => {
     if (user) {
       navigate('/dashboard');
     } else {
-      navigate('/onboarding');
+      navigate('/login');
     }
   };
 

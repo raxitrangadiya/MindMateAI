@@ -1,0 +1,23 @@
+{
+  "name": "mindmate-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "H2C-Client",
+    "H2C-Server"
+  ],
+  "scripts": {
+    "sync-env": "node scripts/sync-envs.js",
+    "dev:client": "npm run dev --workspace=mindmate-client",
+    "dev:server": "npm run dev --workspace=mindmate-server",
+    "dev": "npm run sync-env && concurrently --kill-others \"npm run dev:client\" \"npm run dev:server\"",
+    "build:client": "npm run build --workspace=mindmate-client",
+    "build:server": "npm run build --workspace=mindmate-server",
+    "build": "npm run sync-env && npm run build:server && npm run build:client",
+    "install-all": "npm install && npm run sync-env"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

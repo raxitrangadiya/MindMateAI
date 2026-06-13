@@ -7,7 +7,7 @@ import { LoadingSpinner } from './components/ui/LoadingSpinner';
 
 // Lazy load Pages
 const LandingPage = lazy(() => import('./components/landing/LandingPage').then(m => ({ default: m.LandingPage })));
-const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
+const AuthPage = lazy(() => import('./pages/AuthPage').then(m => ({ default: m.AuthPage })));
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const JournalPage = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
 const ChatPage = lazy(() => import('./pages/ChatPage').then(m => ({ default: m.ChatPage })));
@@ -26,7 +26,7 @@ const DashboardLayout: React.FC = () => {
   }
 
   if (!user) {
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return (
@@ -42,7 +42,7 @@ const DashboardLayout: React.FC = () => {
   );
 };
 
-// Public Route Wrapper (prevent logged-in users from seeing Landing or Onboarding)
+// Public Route Wrapper (prevent logged-in users from seeing Landing or Auth screens)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useUser();
 
@@ -68,7 +68,8 @@ export const App: React.FC = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
-          <Route path="/onboarding" element={<PublicRoute><OnboardingPage /></PublicRoute>} />
+          <Route path="/login" element={<PublicRoute><AuthPage /></PublicRoute>} />
+          <Route path="/onboarding" element={<Navigate to="/login" replace />} />
 
           {/* Protected Dashboard Routes */}
           <Route element={<DashboardLayout />}>

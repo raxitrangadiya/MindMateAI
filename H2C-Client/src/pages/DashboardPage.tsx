@@ -18,7 +18,7 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate('/onboarding');
+      navigate('/login');
     }
   }, [user, navigate]);
 
