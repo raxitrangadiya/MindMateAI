@@ -50,7 +50,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting.
 Journal entry: "${content}"`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
     const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
@@ -85,7 +85,7 @@ export async function chatWithCoach(
 - If you detect severe distress or self-harm indicators, respond with: "I hear you, and I want you to know you're not alone. Please reach out to a professional: iCall (9152987821), Vandrevala Foundation (1860-2662-345), or NIMHANS (080-46110007). You deserve support."`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
     // Build conversation history for multi-turn
     const history = messages.slice(0, -1).map((m) => ({
@@ -149,7 +149,7 @@ Keep each field to 1-2 sentences. Be specific and actionable.
 Return ONLY valid JSON.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
     const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');

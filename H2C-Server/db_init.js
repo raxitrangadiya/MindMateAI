@@ -1,8 +1,8 @@
 import pg from 'pg';
 
 const connectionStrings = [
-  'postgresql://postgres.piazqmwttuvlfxoybbhy:amP3!XYq7YN+PNu@aws-0-ap-south-1.pooler.supabase.com:6543/postgres',
-  'postgresql://postgres.piazqmwttuvlfxoybbhy:amP3!XYq7YN+PNu@aws-0-ap-south-1.pooler.supabase.com:5432/postgres',
+  'postgresql://postgres.piazqmwttuvlfxoybbhy:amP3!XYq7YN+PNu@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres',
+  'postgresql://postgres.piazqmwttuvlfxoybbhy:amP3!XYq7YN+PNu@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres',
   'postgresql://postgres:amP3!XYq7YN+PNu@db.piazqmwttuvlfxoybbhy.supabase.co:5432/postgres'
 ];
 
@@ -77,7 +77,11 @@ async function main() {
   let success = false;
   for (const connStr of connectionStrings) {
     console.log(`Trying to connect with: ${connStr.replace(/:[^:@]+@/, ':****@')}`);
-    const client = new pg.Client({ connectionString: connStr, connectionTimeoutMillis: 5000 });
+    const client = new pg.Client({
+      connectionString: connStr,
+      connectionTimeoutMillis: 10000,
+      ssl: { rejectUnauthorized: false }
+    });
     try {
       await client.connect();
       console.log('Connected! Executing DDL schema statements...');
