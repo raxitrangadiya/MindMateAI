@@ -16,8 +16,26 @@ import weeklySummaryRoutes from './routes/weekly-summary.routes.js';
 
 const app = express();
 
+const allowedOrigins = [
+  config.clientUrl,
+  'https://mind-mate-ai-h2-c-client.vercel.app',
+  'https://mind-mate-ai-h2-c-client.vercel.app/'
+];
+
 app.use(helmet());
-app.use(cors({ origin: config.clientUrl }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    const isAllowed = allowedOrigins.some(url => url.replace(/\/$/, '') === normalizedOrigin);
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '10kb' }));
 app.use('/api', apiLimiter);
 
